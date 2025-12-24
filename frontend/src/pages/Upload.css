@@ -1,0 +1,44 @@
+/* Styling for the Upload Area */
+.drop-zone {
+    border: 2px dashed #05728f;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    transition: background 0.3s ease;
+    cursor: pointer;
+    background: #f9f9f9;
+}
+
+.drop-zone.dragging {
+    background: #e1f5fe;
+    border-color: #007bff;
+}
+
+.drop-zone-label {
+    cursor: pointer;
+    width: 100%;
+    margin-bottom: 0;
+}
+
+.file-preview {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+}
+
+/* File Message Highlight */
+.file-msg {
+    background: #fff3cd !important;
+    color: #856404 !important;
+    border: 1px solid #ffeeba;
+    font-weight: 500;
+}
+
+/* Ensure the history doesn't collapse */
+.msg_history_resume {
+    height: 400px;
+    overflow-y: auto;
+}
+
+.upload_mesgs {
+    width: 100%;
+}
