@@ -3,8 +3,9 @@ import multer from "multer";
 import Resume from "../models/Resume";
 import Interview from "../models/Interview";
 import { extractResumeText } from "../services/resume.service";
-import { generateQuestion, evaluateAnswer } from "../services/gemini.service";
+import { generateQuestion, evaluateAnswer } from "../services/groq.service";
 import upload from "../middleware/upload";
+import { getClientIp } from "../helpers/clientip.helper";
 
 const router = Router();
 // const upload = multer({ dest: "uploads/" });
@@ -15,7 +16,6 @@ router.post("/upload", upload.single("resume"), async (req, res) => {
             return res.status(400).json({ message: "No file uploaded" });
         }
 
-        console.log(req.file.path);
         const resumeText = await extractResumeText(req.file.path);
         console.log(resumeText);
 
@@ -23,8 +23,14 @@ router.post("/upload", upload.single("resume"), async (req, res) => {
             return res.status(400).json({ message: "Could not extract resume text" });
         }
 
+        const ip = await getClientIp(req);
+        const checkExisting = await Resume.findOne({ userId: ip });
+        if (checkExisting) {
+            return res.status(400).json({ message: "Resume already uploaded from this IP" });
+        }
+
         const resume = new Resume({
-            userId: "user1", // In real app, get from auth
+            userId: getClientIp(req), // In real app, get from auth
             filename: req.file.originalname,
             text: resumeText, // ✅ REQUIRED FIELD
         });
@@ -40,15 +46,30 @@ router.post("/upload", upload.single("resume"), async (req, res) => {
     }
 });
 
+router.get('/history', async (req, res) => {
+    const ip = await getClientIp(req);
+    const interviews = await Interview.find({ userId: ip }).sort({ _id: 1 });
+    res.json({ interviews });
+});
+
 router.post("/question", async (req, res) => {
-    const resume = await Resume.findOne({ userId: "user1" });
+    const ip = await getClientIp(req);
+    const resume = await Resume.findOne({ userId: ip });
     const question = await generateQuestion(resume!.text);
+    Interview.create({
+        userId: ip,
+        question,
+        answer: "",
+        evaluation: "",
+        score: 0
+    });
     res.json({ question });
 });
 
 router.post("/answer", async (req, res) => {
-    const { question, answer } = req.body;
-    const resume = await Resume.findOne({ userId: "user1" });
+    const ip = await getClientIp(req);
+    const { question, answer, questionId } = req.body;
+    const resume = await Resume.findOne({ userId: ip });
 
     const evaluation = await evaluateAnswer(
         resume!.text,
@@ -56,15 +77,39 @@ router.post("/answer", async (req, res) => {
         answer
     );
 
-    await Interview.create({
-        userId: "user1",
-        question,
-        answer,
-        evaluation,
-        score: 5
-    });
+    if (evaluation.nextAction != "NONE") {
+        Interview.create({
+            userId: ip,
+            question: evaluation.nextAction,
+            answer: "",
+            evaluation: "",
+            score: 0
+        });
+    } else if (evaluation.nextQuestion && evaluation.nextQuestion != "NONE") {
+        Interview.create({
+            userId: ip,
+            question: evaluation.nextQuestion,
+            answer: "",
+            evaluation: "",
+            score: 0
+        });
+    }
 
-    res.json({ evaluation });
+    await Interview.updateOne(
+        { _id: questionId },
+        {
+            $set: {
+                userId: ip,
+                question,
+                answer,
+                evaluation: evaluation.raw,
+                score: evaluation.score ?? 0
+            }
+        }
+    );
+
+
+    res.json({ evaluation: evaluation.raw });
 });
 
 export default router;

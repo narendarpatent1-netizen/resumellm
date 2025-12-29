@@ -12,6 +12,14 @@ export async function uploadResume(file: File) {
     return res.json();
 }
 
+export async function getChatHistory() {
+    const res = await fetch(`${BASE_URL}/history`, {
+        method: "GET"
+    });
+
+    return res.json();
+}
+
 export async function getQuestion() {
     const res = await fetch(`${BASE_URL}/question`, {
         method: "POST"
@@ -20,13 +28,13 @@ export async function getQuestion() {
     return res.json();
 }
 
-export async function submitAnswer(question: string, answer: string) {
+export async function submitAnswer(question: string, answer: string, questionId: string) {
     const res = await fetch(`${BASE_URL}/answer`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({ question, answer })
+        body: JSON.stringify({ question, answer, questionId })
     });
 
     return res.json();

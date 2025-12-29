@@ -1,10 +1,10 @@
 import React, { useState, ChangeEvent, KeyboardEvent, useEffect, useRef } from 'react';
-import { getQuestion } from "../api/interview.api";
+import { getQuestion, getChatHistory, submitAnswer } from "../api/interview.api";
 import './Chat.css';
 
 // Define the structure of a Message
 interface Message {
-    id: number;
+    id: string;
     type: 'incoming' | 'outgoing';
     text: string;
     time: string;
@@ -12,14 +12,10 @@ interface Message {
 
 const ChatApp: React.FC = () => {
     // Initialize state with the Message interface
-    const [messages, setMessages] = useState<Message[]>([
-        { id: 1, type: 'incoming', text: 'Hi', time: '11:01 AM | June 9' },
-        // { id: 2, type: 'outgoing', text: 'Test which is a new approach to have all solutions', time: '11:01 AM | June 9' },
-        // { id: 3, type: 'incoming', text: 'Test, which is a new approach to have', time: '11:01 AM | Yesterday' },
-        // { id: 4, type: 'outgoing', text: 'Apollo University, Delhi, India Test', time: '11:01 AM | Today' },
-    ]);
-
+    const [messages, setMessages] = useState<Message[]>([]);
     const [inputMsg, setInputMsg] = useState<string>('');
+    const [currentQuestionId, setCurrentQuestionId] = useState<string>('');
+    const [currentQuestionText, setCurrentQuestionText] = useState<string>('');
     const fetchedRef = React.useRef(false);
     // Handle Input Changes
     const handleInputChange = (e: ChangeEvent<HTMLInputElement>): void => {
@@ -27,16 +23,18 @@ const ChatApp: React.FC = () => {
     };
 
     // Handle Send Logic
-    const handleSendMessage = (): void => {
+    const handleSendMessage = async (): Promise<void> => {
         if (inputMsg.trim() !== '') {
             const newMessage: Message = {
-                id: Date.now(), // Unique ID using timestamp
+                id: String(Date.now()), // Unique ID using timestamp
                 type: 'outgoing',
                 text: inputMsg,
                 time: `${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} | Today`
             };
             setMessages([...messages, newMessage]);
             setInputMsg('');
+            await submitAnswer(currentQuestionText, inputMsg, currentQuestionId);
+            await fetchQuestions();
         }
     };
 
@@ -48,15 +46,44 @@ const ChatApp: React.FC = () => {
     };
 
     const fetchQuestions = async () => {
-        const response = await getQuestion();
-        if (response && response.question) {
+        const response = await getChatHistory();
+        if (response && response.interviews.length > 0) {
+            setMessages([]); // Clear existing messages
+            response.interviews.forEach((interview: any) => {
+                if (interview.question) {
+                    const newMessage: Message = {
+                        id: interview._id,
+                        type: 'incoming',
+                        text: interview.question,
+                        time: `${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} | Today`
+                    };
+                    setMessages((prevMessages) => [...prevMessages, newMessage]);
+                    setCurrentQuestionId(newMessage.id);
+                    setCurrentQuestionText(newMessage.text);
+                }
+
+                if (interview.answer) {
+                    const replyMessage: Message = {
+                        id: interview._id,
+                        type: 'outgoing',
+                        text: interview.answer,
+                        time: `${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} | Today`
+                    };
+                    setMessages((prevMessages) => [...prevMessages, replyMessage]);
+                }
+
+            });
+        } else {
+            const response = await getQuestion();
             const newMessage: Message = {
-                id: Date.now(),
+                id: response._id,
                 type: 'incoming',
                 text: response.question,
                 time: `${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} | Today`
             };
             setMessages((prevMessages) => [...prevMessages, newMessage]);
+            setCurrentQuestionId(newMessage.id);
+            setCurrentQuestionText(newMessage.text);
         }
     }
 
@@ -65,6 +92,8 @@ const ChatApp: React.FC = () => {
         fetchedRef.current = true;
         fetchQuestions();
     }, []);
+    console.log(messages);
+
 
     return (
         <div className="d-flex align-items-center justify-content-center" style={{ minHeight: '100vh', backgroundColor: '#f0f2f5' }}>
@@ -112,7 +141,7 @@ const ChatApp: React.FC = () => {
                                 <div className="mesgs">
                                     <div className="msg_history">
                                         {messages.map((msg) => (
-                                            <div key={msg.id} className={msg.type === 'incoming' ? 'incoming_msg' : 'outgoing_msg'}>
+                                            <div key={msg.id} id={`${msg?.id}`} className={msg.type === 'incoming' ? 'incoming_msg' : 'outgoing_msg'}>
                                                 {msg.type === 'incoming' && (
                                                     <div className="incoming_msg_img">
                                                         <img src="https://ptetutorials.com/images/user-profile.png" alt="sunil" />
