@@ -2,3 +2,6 @@ backend/node_modules/
 frontend/node_modules/
 
 backend/uploads/
+
+git add .gitignore backend/.env
+frontend/.env".env" 
