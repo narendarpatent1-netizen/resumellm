@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent, KeyboardEvent, DragEvent } from 'react';
+import React, { useState, ChangeEvent, DragEvent, useEffect } from 'react';
 import { uploadResume } from "../api/interview.api";
 import { useNavigate } from "react-router-dom";
 import './Chat.css';
@@ -27,7 +27,6 @@ const UploadApp: React.FC = () => {
     const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             setSelectedFile(e.target.files[0]);
-            // alert("Resume uploaded");
         }
     };
 
@@ -41,8 +40,8 @@ const UploadApp: React.FC = () => {
                 time: getTime(),
                 isFile: true
             };
-            await uploadResume(selectedFile);
             setMessages([...messages, newMessage]);
+            await uploadResume(selectedFile);
             setSelectedFile(null); // Clear preview after sending
             navigate("/chat")
         }
@@ -64,8 +63,28 @@ const UploadApp: React.FC = () => {
         }
     };
 
+    const handleLogout = () => {
+        localStorage.removeItem("access_token");
+        navigate("/");
+    };
+
+    useEffect(() => {
+        const token = localStorage.getItem("access_token");
+        if (!token) {
+            navigate("/");
+        }
+    }, [navigate]);
+
     return (
         <div className="d-flex align-items-center justify-content-center" style={{ minHeight: '100vh', backgroundColor: '#f0f2f5' }}>
+            <div className="position-absolute top-0 end-0 m-3">
+                <button
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={handleLogout}
+                >
+                    Logout
+                </button>
+            </div>
             <div className="container">
                 <div className="row d-flex align-items-center justify-content-center">
                     <div className='col-md-8 col-lg-6'>

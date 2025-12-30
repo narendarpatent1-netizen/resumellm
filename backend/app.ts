@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/db";
 import interviewRoutes from "./routes/interview.routes";
+import AuthRoutes from "./routes/auth.routes";
 
 dotenv.config();
 
@@ -14,6 +15,8 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api/interview", interviewRoutes);
+
+app.use('/api/auth', AuthRoutes);
 
 connectDB();
 

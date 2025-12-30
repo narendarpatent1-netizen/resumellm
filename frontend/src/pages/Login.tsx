@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { login } from "../api/auth.api";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -17,24 +18,41 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email || !password) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsLoading(true);
 
-    setTimeout(() => {
-      if (email && password) {
-        toast({
-          title: "Welcome back!",
-          description: "You have successfully logged in.",
-        });
-        navigate("/dashboard");
-      } else {
-        toast({
-          title: "Error",
-          description: "Please fill in all fields.",
-          variant: "destructive",
-        });
+    try {
+      const response = await login(email, password); // your API function
+      // If backend returned error message
+      if (!response?.user) {
+        throw new Error(response.message);
       }
+
+      // Save token if provided
+      if (response?.accessToken) {
+        localStorage.setItem("access_token", response.accessToken);
+      }
+      toast({
+        title: "Welcome back!",
+        description: "You have successfully logged in.",
+      });
+      navigate("/upload"); // redirect page
+    } catch (err: any) {
+      toast({
+        title: "Login failed",
+        description: err.message || "Invalid email or password",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -65,7 +83,7 @@ const Login = () => {
                 Email address
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                {/* <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /> */}
                 <Input
                   id="email"
                   type="email"
@@ -87,7 +105,7 @@ const Login = () => {
                 </a>
               </div>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                {/* <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /> */}
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}

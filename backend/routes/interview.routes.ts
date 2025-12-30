@@ -17,20 +17,18 @@ router.post("/upload", upload.single("resume"), async (req, res) => {
         }
 
         const resumeText = await extractResumeText(req.file.path);
-        console.log(resumeText);
 
         if (!resumeText || resumeText.trim().length === 0) {
             return res.status(400).json({ message: "Could not extract resume text" });
         }
 
-        const ip = await getClientIp(req);
-        const checkExisting = await Resume.findOne({ userId: ip });
+        const checkExisting = await Resume.findOne({ userId: req.body.userId });
         if (checkExisting) {
             return res.status(400).json({ message: "Resume already uploaded from this IP" });
         }
 
         const resume = new Resume({
-            userId: getClientIp(req), // In real app, get from auth
+            userId: req.body.userId, // In real app, get from auth
             filename: req.file.originalname,
             text: resumeText, // ✅ REQUIRED FIELD
         });
@@ -47,29 +45,29 @@ router.post("/upload", upload.single("resume"), async (req, res) => {
 });
 
 router.get('/history', async (req, res) => {
-    const ip = await getClientIp(req);
-    const interviews = await Interview.find({ userId: ip }).sort({ _id: 1 });
+    const interviews = await Interview.find({ userId: req.query.userId }).sort({ _id: 1 });
     res.json({ interviews });
 });
 
 router.post("/question", async (req, res) => {
-    const ip = await getClientIp(req);
-    const resume = await Resume.findOne({ userId: ip });
+    const { userId } = req.body;
+    const resume = await Resume.findOne({ userId: userId });
     const question = await generateQuestion(resume!.text);
-    Interview.create({
-        userId: ip,
+    const doc = await Interview.create({
+        userId: userId,
         question,
         answer: "",
         evaluation: "",
         score: 0
     });
-    res.json({ question });
+
+    const insertedId = doc._id;
+    res.json({ question, id: insertedId });
 });
 
 router.post("/answer", async (req, res) => {
-    const ip = await getClientIp(req);
-    const { question, answer, questionId } = req.body;
-    const resume = await Resume.findOne({ userId: ip });
+    const { question, answer, questionId, userId } = req.body;
+    const resume = await Resume.findOne({ userId: userId });
 
     const evaluation = await evaluateAnswer(
         resume!.text,
@@ -79,7 +77,7 @@ router.post("/answer", async (req, res) => {
 
     if (evaluation.nextAction != "NONE") {
         Interview.create({
-            userId: ip,
+            userId: userId,
             question: evaluation.nextAction,
             answer: "",
             evaluation: "",
@@ -87,7 +85,7 @@ router.post("/answer", async (req, res) => {
         });
     } else if (evaluation.nextQuestion && evaluation.nextQuestion != "NONE") {
         Interview.create({
-            userId: ip,
+            userId: userId,
             question: evaluation.nextQuestion,
             answer: "",
             evaluation: "",
@@ -99,7 +97,7 @@ router.post("/answer", async (req, res) => {
         { _id: questionId },
         {
             $set: {
-                userId: ip,
+                userId: userId,
                 question,
                 answer,
                 evaluation: evaluation.raw,

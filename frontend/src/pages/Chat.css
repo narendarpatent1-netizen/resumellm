@@ -222,3 +222,24 @@ img {
     height: 516px;
     overflow-y: auto;
 }
+
+.write_msg {
+    width: 700px;
+    height: 100px;
+    color: #646464;
+    font-size: 14px;
+    overflow: auto;
+}
+
+.write_msg:focus-visible {
+    outline: none;
+}
+
+.instructions {
+    font-size: 14px;
+    color: #646464;
+}
+
+.instructions li {
+    line-height: 28px;
+}

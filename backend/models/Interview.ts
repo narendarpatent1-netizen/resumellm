@@ -9,12 +9,15 @@ export interface IInterview extends Document {
 }
 
 
-const InterviewSchema = new Schema<IInterview>({
-    userId: String,
-    question: String,
-    answer: String,
-    evaluation: String,
-    score: Number
-});
+const InterviewSchema = new Schema<IInterview>(
+    {
+        userId: String,
+        question: String,
+        answer: String,
+        evaluation: String,
+        score: Number
+    },
+    { timestamps: true }
+);
 
 export default model<IInterview>("Interview", InterviewSchema);
