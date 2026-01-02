@@ -5,10 +5,9 @@ import Interview from "../models/Interview";
 import { extractResumeText } from "../services/resume.service";
 import { generateQuestion, evaluateAnswer } from "../services/groq.service";
 import upload from "../middleware/upload";
-import { getClientIp } from "../helpers/clientip.helper";
+import * as nodeCrypto from "crypto";
 
 const router = Router();
-// const upload = multer({ dest: "uploads/" });
 
 router.post("/upload", upload.single("resume"), async (req, res) => {
     try {
@@ -22,14 +21,15 @@ router.post("/upload", upload.single("resume"), async (req, res) => {
             return res.status(400).json({ message: "Could not extract resume text" });
         }
 
-        const checkExisting = await Resume.findOne({ userId: req.body.userId });
+        const checkExisting = await Resume.findOne({ userId: req.body.userId, hash: hashText(resumeText) });
         if (checkExisting) {
-            return res.status(400).json({ message: "Resume already uploaded from this IP" });
+            return res.status(400).json({ message: "Resume already uploaded from this user" });
         }
 
         const resume = new Resume({
             userId: req.body.userId, // In real app, get from auth
-            filename: req.file.originalname,
+            fileName: req.file.originalname,
+            hash: hashText(resumeText),
             text: resumeText, // ✅ REQUIRED FIELD
         });
 
@@ -43,6 +43,10 @@ router.post("/upload", upload.single("resume"), async (req, res) => {
         return res.status(500).json({ message: "Server error" });
     }
 });
+
+function hashText(text: string) {
+    return nodeCrypto.createHash("sha256").update(text).digest("hex");
+}
 
 router.get('/history', async (req, res) => {
     const interviews = await Interview.find({ userId: req.query.userId }).sort({ _id: 1 });

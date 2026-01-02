@@ -1,4 +1,4 @@
-import { Schema, model, Document } from 'mongoose';
+import mongoose, { Schema, model, Document } from 'mongoose';
 
 export interface IInterview extends Document {
     userId: string;
@@ -6,16 +6,22 @@ export interface IInterview extends Document {
     answer: string;
     evaluation: string;
     score: number;
+    resumeId: mongoose.Types.ObjectId;
 }
 
 
 const InterviewSchema = new Schema<IInterview>(
     {
-        userId: String,
+        userId: { type: String, required: true },
         question: String,
         answer: String,
         evaluation: String,
-        score: Number
+        score: Number,
+        resumeId: {
+            type: Schema.Types.ObjectId,
+            ref: "Resume",
+            required: true
+        }
     },
     { timestamps: true }
 );
