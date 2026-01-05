@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IResume extends Document {
-    userId: string;
+    userId: mongoose.Types.ObjectId;
     fileName: string;
     text: string;
     embedding: number[];
@@ -10,7 +10,7 @@ export interface IResume extends Document {
 
 
 const ResumeSchema = new Schema<IResume>({
-    userId: { type: String, required: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     fileName: { type: String, required: true },
     text: { type: String, required: true },
     embedding: { type: [Number], required: true },

@@ -1,7 +1,7 @@
 import mongoose, { Schema, model, Document } from 'mongoose';
 
 export interface IInterview extends Document {
-    userId: string;
+    userId: mongoose.Types.ObjectId;
     question: string;
     answer: string;
     evaluation: string;
@@ -12,7 +12,7 @@ export interface IInterview extends Document {
 
 const InterviewSchema = new Schema<IInterview>(
     {
-        userId: { type: String, required: true },
+        userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
         question: String,
         answer: String,
         evaluation: String,
@@ -26,4 +26,4 @@ const InterviewSchema = new Schema<IInterview>(
     { timestamps: true }
 );
 
-export default model<IInterview>("Interview", InterviewSchema);
+export default model<IInterview>("InterviewConversation", InterviewSchema);

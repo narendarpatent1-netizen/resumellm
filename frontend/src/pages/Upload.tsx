@@ -1,6 +1,8 @@
 import React, { useState, ChangeEvent, DragEvent, useEffect } from 'react';
 import { uploadResume } from "../api/interview.api";
 import { useNavigate } from "react-router-dom";
+import { useResume } from "../context/ResumeContext";
+
 import './Chat.css';
 import './Upload.css';
 
@@ -19,6 +21,7 @@ const UploadApp: React.FC = () => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [file, setFile] = useState<File | null>(null);
+    const { setResumeId } = useResume();
     const navigate = useNavigate();
 
     const getTime = () => `${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} | Today`;
@@ -41,7 +44,8 @@ const UploadApp: React.FC = () => {
                 isFile: true
             };
             setMessages([...messages, newMessage]);
-            await uploadResume(selectedFile);
+            const resumeId = await uploadResume(selectedFile);
+            setResumeId(resumeId.lastResumeId);
             setSelectedFile(null); // Clear preview after sending
             navigate("/chat")
         }

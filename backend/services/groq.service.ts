@@ -31,64 +31,90 @@ Return only the question.
         : (res.content as any[]).map(p => p.text).join("");
 }
 
+export async function checkExitIntentLLM(text: string) {
 
-export async function evaluateAnswer(
-    resumeText: string,
-    question: string,
-    userAnswer: string
-) {
     const prompt = `
-You are an interview evaluator.
+You are an interview assistant. Determine if the user wants to end or exit the interview.
+Answer ONLY "YES" if the user wants to exit, otherwise answer "NO".
 
-Resume:
-${resumeText}
-
-Question:
-${question}
-
-User Answer:
-${userAnswer}
-
-Evaluation Rules:
-- Judge ONLY based on the question and answer (no assumptions)
-- If the answer is mostly correct → mark ACCEPTED
-- If the answer is wrong, incomplete, or irrelevant → mark INCORRECT
-- Give a short explanation
-- Give a score out of 10
-- If INCORRECT → politely ask the candidate to improve the answer
-  (Ask them to provide a clearer or more accurate response)
-- If ACCEPTED → ask the next interview question from the resume
-
-Output format (strict):
-
-Result: ACCEPTED or INCORRECT
-Reason: <short explanation>
-Score: <x>/10
-NextAction: <message asking user to correct the answer if INCORRECT, otherwise say NONE>
-NextQuestion: <next interview question only if ACCEPTED, otherwise say NONE>
-`;
+User's response: "${text}"
+    `;;
 
     const res = await llm.invoke(prompt);
-    const output =
-        typeof res === "string" ? res : (res.content ?? "").toString();
 
-    const resultMatch = output.match(/Result:\s*(ACCEPTED|INCORRECT)/i);
+    return typeof res.content === "string"
+        ? res.content
+        : (res.content as any[]).map(p => p.text).join("");
+}
+
+
+export async function evaluateAnswer(resumeText: string, question: string, userAnswer: string) {
+
+    const prompt = `
+    You are an interview evaluator.
+
+    Resume:
+    ${resumeText}
+
+    Question:
+    ${question}
+
+    User Answer:
+    ${userAnswer}
+
+    Evaluation Rules:
+    - Judge ONLY based on the question and answer
+
+    - If the user wants to STOP / EXIT / END:
+    Result: EXIT_PENDING
+    Reason: User requested to exit the interview
+    Score: 0/10
+    NextAction: CONFIRM_EXIT
+    NextQuestion: NONE
+
+    - When EXIT_PENDING is returned:
+    • Do NOT ask follow-up questions
+    • Do NOT give feedback
+    • Only trigger confirmation flow
+
+    - Otherwise evaluate normally.
+
+    Output format (strict):
+
+    Result: ACCEPTED or INCORRECT or EXIT_PENDING
+    Reason: <short explanation>
+    Score: <x>/10
+    NextAction: <text or NONE>
+    NextQuestion: <question or NONE>
+    `;
+
+    const res = await llm.invoke(prompt);
+    const output = typeof res === "string" ? res : (res.content ?? "").toString();
+
+    const resultMatch = output.match(/Result:\s*(ACCEPTED|INCORRECT|EXIT_PENDING)/i);
     const scoreMatch = output.match(/Score:\s*(\d+(?:\.\d+)?)\/10/i);
     const actionMatch = output.match(/NextAction:\s*(.*)/i);
     const nextQMatch = output.match(/NextQuestion:\s*(.*)/i);
 
-    const result = resultMatch?.[1].toUpperCase() ?? "UNKNOWN";
-    const score = scoreMatch ? Number(scoreMatch[1]) : null;
-    const nextAction = actionMatch?.[1]?.trim() ?? null;
-    const nextQuestion = nextQMatch?.[1]?.trim() ?? null;
+    let result = resultMatch?.[1]?.toUpperCase() ?? "UNKNOWN";
+
+    // 🔒 Hard fallback — detect exit intent manually
+    const exitIntents = ["exit", "quit", "stop", "end", "leave"];
+    const wantsExit = exitIntents.some(x =>
+        userAnswer.toLowerCase().includes(x)
+    );
+
+    if (wantsExit && result !== "EXIT_PENDING") {
+        result = "EXIT_PENDING";
+    }
 
     return {
         raw: output.trim(),
         result,
         isCorrect: result === "ACCEPTED",
-        score,
-        nextAction,
-        nextQuestion,
+        score: scoreMatch ? Number(scoreMatch[1]) : 0,
+        nextAction: actionMatch?.[1]?.trim() ?? "NONE",
+        nextQuestion: nextQMatch?.[1]?.trim() ?? "NONE"
     };
 }
 

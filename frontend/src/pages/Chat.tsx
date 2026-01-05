@@ -1,6 +1,7 @@
 import React, { useState, ChangeEvent, KeyboardEvent, useEffect, useRef } from 'react';
 import { useNavigate } from "react-router-dom";
 import { getQuestion, getChatHistory, submitAnswer } from "../api/interview.api";
+import { useResume } from "../context/ResumeContext";
 import './Chat.css';
 
 // Define the structure of a Message
@@ -18,6 +19,7 @@ const ChatApp: React.FC = () => {
     const [currentQuestionId, setCurrentQuestionId] = useState<string>('');
     const [currentQuestionText, setCurrentQuestionText] = useState<string>('');
     const fetchedRef = React.useRef(false);
+    const { resumeId } = useResume();
     const navigate = useNavigate();
     // Handle Input Changes
     const handleInputChange = (e: ChangeEvent<HTMLInputElement>): void => {
@@ -35,7 +37,7 @@ const ChatApp: React.FC = () => {
             };
             setMessages([...messages, newMessage]);
             setInputMsg('');
-            await submitAnswer(currentQuestionText, inputMsg, currentQuestionId);
+            await submitAnswer(currentQuestionText, inputMsg, currentQuestionId, resumeId);
             await fetchQuestions();
         }
     };
@@ -48,7 +50,7 @@ const ChatApp: React.FC = () => {
     };
 
     const fetchQuestions = async () => {
-        const response = await getChatHistory();
+        const response = await getChatHistory(resumeId);
         if (response && response.interviews.length > 0) {
             setMessages([]); // Clear existing messages
             response.interviews.forEach((interview: any) => {
@@ -76,7 +78,7 @@ const ChatApp: React.FC = () => {
 
             });
         } else {
-            const response = await getQuestion();
+            const response = await getQuestion(resumeId);
             const newMessage: Message = {
                 id: response.id,
                 type: 'incoming',

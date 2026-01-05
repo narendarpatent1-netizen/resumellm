@@ -9,25 +9,28 @@ import Chat from "./pages/Chat";
 import Upload from "./pages/Upload";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import { ResumeProvider } from "./context/ResumeContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/chat" element={<Chat />} />
-          <Route path="/upload" element={<Upload />} />
-          <Route path="/" element={<Login />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ResumeProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/chat" element={<Chat />} />
+            <Route path="/upload" element={<Upload />} />
+            <Route path="/" element={<Login />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ResumeProvider>
 );
 
 export default App;

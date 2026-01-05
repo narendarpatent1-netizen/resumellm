@@ -16,17 +16,17 @@ export async function uploadResume(file: File) {
     return res.json();
 }
 
-export async function getChatHistory() {
+export async function getChatHistory(resumeId) {
     const userId = getUserIdFromToken();
     if (!userId) throw new Error("User not logged in");
-    const res = await fetch(`${BASE_URL}/history?userId=${userId}`, {
+    const res = await fetch(`${BASE_URL}/history?userId=${userId}&resumeId=${resumeId}`, {
         method: "GET"
     });
 
     return res.json();
 }
 
-export async function getQuestion() {
+export async function getQuestion(resumeId) {
     const userId = getUserIdFromToken();
     if (!userId) throw new Error("User not logged in");
     const res = await fetch(`${BASE_URL}/question`, {
@@ -34,13 +34,13 @@ export async function getQuestion() {
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({ userId })
+        body: JSON.stringify({ userId, resumeId })
     });
 
     return res.json();
 }
 
-export async function submitAnswer(question: string, answer: string, questionId: string) {
+export async function submitAnswer(question: string, answer: string, questionId: string, resumeId: Number) {
     const userId = getUserIdFromToken();
     if (!userId) throw new Error("User not logged in");
     const res = await fetch(`${BASE_URL}/answer`, {
@@ -48,7 +48,7 @@ export async function submitAnswer(question: string, answer: string, questionId:
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({ question, answer, questionId, userId })
+        body: JSON.stringify({ question, answer, questionId, userId, resumeId })
     });
 
     return res.json();
