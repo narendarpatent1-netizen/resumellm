@@ -243,3 +243,13 @@ img {
 .instructions li {
     line-height: 28px;
 }
+
+.btn-outline-primary {
+    color: #05728f !important;
+    border: 0px solid #05728f !important;
+}
+
+.btn-outline-primary:hover {
+    color: #05728f !important;
+    background: #f8f8f8 !important;
+}

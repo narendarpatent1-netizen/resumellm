@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
 type ResumeContextType = {
     resumeId: string | null;
@@ -9,6 +9,19 @@ const ResumeContext = createContext<ResumeContextType | undefined>(undefined);
 
 export const ResumeProvider = ({ children }: { children: ReactNode }) => {
     const [resumeId, setResumeId] = useState<string | null>(null);
+
+    // Load value on first render
+    useEffect(() => {
+        const savedId = localStorage.getItem('resumeId');
+        if (savedId) setResumeId(savedId);
+    }, []);
+
+    //Save whenever it changes
+    useEffect(() => {
+        if (resumeId) {
+            localStorage.setItem('resumeId', resumeId);
+        }
+    }, [resumeId]);
 
     return (
         <ResumeContext.Provider value={{ resumeId, setResumeId }}>

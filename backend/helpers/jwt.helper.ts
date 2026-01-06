@@ -6,7 +6,7 @@ const {
     JWT_REFRESH_SECRET,
     JWT_ISSUER,
     JWT_AUDIENCE,
-    ACCESS_TOKEN_EXPIRES = "15m",
+    ACCESS_TOKEN_EXPIRES = "1m",
     REFRESH_TOKEN_EXPIRES = "7d",
 } = process.env;
 

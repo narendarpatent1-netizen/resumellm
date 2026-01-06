@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { login } from "../api/auth.api";
+import { setAccessToken } from "../utils/api.utils";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -37,7 +38,7 @@ const Login = () => {
 
       // Save token if provided
       if (response?.accessToken) {
-        localStorage.setItem("access_token", response.accessToken);
+        setAccessToken(response.accessToken);
       }
       toast({
         title: "Welcome back!",
@@ -54,6 +55,10 @@ const Login = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    document.title = "Login | My App";
+  })
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">

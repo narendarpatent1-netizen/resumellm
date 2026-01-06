@@ -2,7 +2,7 @@ import React, { useState, ChangeEvent, DragEvent, useEffect } from 'react';
 import { uploadResume } from "../api/interview.api";
 import { useNavigate } from "react-router-dom";
 import { useResume } from "../context/ResumeContext";
-
+import { clearAuth, getAccessToken } from "../utils/api.utils";
 import './Chat.css';
 import './Upload.css';
 
@@ -20,7 +20,6 @@ const UploadApp: React.FC = () => {
     ]);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
-    const [file, setFile] = useState<File | null>(null);
     const { setResumeId } = useResume();
     const navigate = useNavigate();
 
@@ -45,6 +44,7 @@ const UploadApp: React.FC = () => {
             };
             setMessages([...messages, newMessage]);
             const resumeId = await uploadResume(selectedFile);
+            localStorage.setItem('resumeId', resumeId.lastResumeId);
             setResumeId(resumeId.lastResumeId);
             setSelectedFile(null); // Clear preview after sending
             navigate("/chat")
@@ -68,12 +68,13 @@ const UploadApp: React.FC = () => {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem("access_token");
+        clearAuth();
         navigate("/");
     };
 
     useEffect(() => {
-        const token = localStorage.getItem("access_token");
+        const token = getAccessToken();
+        document.title = "Upload | My App";
         if (!token) {
             navigate("/");
         }
@@ -81,14 +82,7 @@ const UploadApp: React.FC = () => {
 
     return (
         <div className="d-flex align-items-center justify-content-center" style={{ minHeight: '100vh', backgroundColor: '#f0f2f5' }}>
-            <div className="position-absolute top-0 end-0 m-3">
-                <button
-                    className="btn btn-sm btn-outline-danger"
-                    onClick={handleLogout}
-                >
-                    Logout
-                </button>
-            </div>
+
             <div className="container">
                 <div className="row d-flex align-items-center justify-content-center">
                     <div className='col-md-8 col-lg-6'>
@@ -96,6 +90,14 @@ const UploadApp: React.FC = () => {
                             <div className="inbox_msg shadow-sm bg-white rounded">
 
                                 <div className="upload_mesgs">
+                                    <div className="position-absolute top-0 end-0 m-3 me-3">
+                                        <button
+                                            className="btn btn-sm btn-outline-primary me-3"
+                                            onClick={handleLogout}
+                                        >
+                                            Logout
+                                        </button>
+                                    </div>
                                     <div className="msg_history_resume p-3">
                                         {messages.map((msg) => (
                                             <div key={msg.id} className={msg.type === 'incoming' ? 'incoming_msg' : 'outgoing_msg'}>

@@ -11,7 +11,7 @@ const Index = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5" />
       <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
       <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-accent/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-      
+
       {/* Grid pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.015)_1px,transparent_1px)] bg-[size:72px_72px]" />
 
@@ -27,7 +27,7 @@ const Index = () => {
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
-              onClick={() => navigate("/login")}
+              onClick={() => navigate("/")}
               className="text-muted-foreground hover:text-foreground"
             >
               Sign in
@@ -60,11 +60,11 @@ const Index = () => {
                 beautifully managed
               </span>
             </h1>
-            
+
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
               The all-in-one platform to track performance, manage teams, and grow your business with powerful analytics and beautiful dashboards.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <Button
                 onClick={() => navigate("/login")}

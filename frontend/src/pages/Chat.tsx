@@ -2,6 +2,7 @@ import React, { useState, ChangeEvent, KeyboardEvent, useEffect, useRef } from '
 import { useNavigate } from "react-router-dom";
 import { getQuestion, getChatHistory, submitAnswer } from "../api/interview.api";
 import { useResume } from "../context/ResumeContext";
+import { clearAuth, getAccessToken } from "../utils/api.utils";
 import './Chat.css';
 
 // Define the structure of a Message
@@ -19,16 +20,16 @@ const ChatApp: React.FC = () => {
     const [currentQuestionId, setCurrentQuestionId] = useState<string>('');
     const [currentQuestionText, setCurrentQuestionText] = useState<string>('');
     const fetchedRef = React.useRef(false);
-    const { resumeId } = useResume();
     const navigate = useNavigate();
     // Handle Input Changes
-    const handleInputChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>): void => {
         setInputMsg(e.target.value);
     };
 
     // Handle Send Logic
     const handleSendMessage = async (): Promise<void> => {
         if (inputMsg.trim() !== '') {
+            const resumeId = localStorage.getItem('resumeId');
             const newMessage: Message = {
                 id: String(Date.now()), // Unique ID using timestamp
                 type: 'outgoing',
@@ -43,13 +44,14 @@ const ChatApp: React.FC = () => {
     };
 
     // Handle Enter Key Press
-    const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>): void => {
+    const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
         if (e.key === 'Enter') {
             handleSendMessage();
         }
     };
 
     const fetchQuestions = async () => {
+        const resumeId = localStorage.getItem('resumeId');
         const response = await getChatHistory(resumeId);
         if (response && response.interviews.length > 0) {
             setMessages([]); // Clear existing messages
@@ -145,7 +147,8 @@ const ChatApp: React.FC = () => {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem("access_token");
+        clearAuth();
+        localStorage.removeItem("resumeId");
         navigate("/");
     };
 
@@ -156,23 +159,18 @@ const ChatApp: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        const token = localStorage.getItem("access_token");
+        document.title = "Chat | My App";
+        const token = getAccessToken();
         if (!token) {
             navigate("/");
         }
     }, [navigate]);
-    //console.log(messages);
 
 
     return (
         <div className="d-flex align-items-center justify-content-center" style={{ minHeight: '100vh', backgroundColor: '#f0f2f5' }}>
             <div className='position-absolute top-0 end-0 m-3'>
-                <button
-                    className="btn btn-sm btn-outline-danger"
-                    onClick={handleLogout}
-                >
-                    Logout
-                </button>
+
             </div>
             <div className="container">
                 <div className="row mt-4 pt-4">
@@ -187,7 +185,12 @@ const ChatApp: React.FC = () => {
                                             <h4>Instructions</h4>
                                         </div>
                                         <div className="srch_bar">
-
+                                            <button
+                                                className="btn btn-sm btn-outline-primary"
+                                                onClick={handleLogout}
+                                            >
+                                                Logout
+                                            </button>
                                         </div>
                                     </div>
                                     <div className="inbox_chat">
@@ -236,12 +239,11 @@ const ChatApp: React.FC = () => {
                                     <div className="type_msg">
                                         <div className="input_msg_write">
                                             <textarea
-                                                type="text"
                                                 className="write_msg"
                                                 placeholder="Type a message"
                                                 value={inputMsg}
                                                 onChange={handleInputChange}
-                                                onKeyPress={handleKeyPress}
+                                                onKeyDown={handleKeyPress}
                                             ></textarea>
                                             <button className="msg_send_btn" type="button" onClick={handleSendMessage}>
                                                 <i className="fa fa-paper-plane-o" aria-hidden="true"></i>

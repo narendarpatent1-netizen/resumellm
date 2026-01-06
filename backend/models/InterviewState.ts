@@ -5,6 +5,7 @@ export interface IInterviewState extends Document {
     resumeId: mongoose.Types.ObjectId;
     expectingExitConfirmation: boolean;
     exitConfirmed?: boolean;
+    submissionStatus?: boolean;
     lastPrompt?: string;     // optional: store the last bot question
     updatedAt: Date;
 }
@@ -16,6 +17,7 @@ const InterviewStateSchema = new Schema<IInterviewState>(
         resumeId: { type: Schema.Types.ObjectId, ref: "Resume", required: true, index: true },
         expectingExitConfirmation: { type: Boolean, default: false },
         exitConfirmed: { type: Boolean, default: undefined },
+        submissionStatus: { type: Boolean, default: undefined },
         lastPrompt: { type: String },
     },
     {

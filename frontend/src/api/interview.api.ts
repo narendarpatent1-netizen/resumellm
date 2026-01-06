@@ -1,5 +1,5 @@
-const BASE_URL = "http://localhost:3000/api/interview";
 import { getUserIdFromToken } from "../utils/auth.utils";
+import api from "../utils/api.utils";
 
 export async function uploadResume(file: File) {
     const userId = getUserIdFromToken();
@@ -7,49 +7,29 @@ export async function uploadResume(file: File) {
     const formData = new FormData();
     formData.append("resume", file);
     formData.append("userId", userId);
-
-    const res = await fetch(`${BASE_URL}/upload`, {
-        method: "POST",
-        body: formData
-    });
-
-    return res.json();
+    const res = await api.post("/upload", formData);
+    console.log(res);
+    return false;
+    return res.data;
 }
 
-export async function getChatHistory(resumeId) {
+export async function getChatHistory(resumeId: string) {
     const userId = getUserIdFromToken();
     if (!userId) throw new Error("User not logged in");
-    const res = await fetch(`${BASE_URL}/history?userId=${userId}&resumeId=${resumeId}`, {
-        method: "GET"
-    });
-
-    return res.json();
+    const res = await api.get(`/history?userId=${userId}&resumeId=${resumeId}`);
+    return res.data;
 }
 
-export async function getQuestion(resumeId) {
+export async function getQuestion(resumeId: string) {
     const userId = getUserIdFromToken();
     if (!userId) throw new Error("User not logged in");
-    const res = await fetch(`${BASE_URL}/question`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ userId, resumeId })
-    });
-
-    return res.json();
+    const res = await api.post("/question", { userId, resumeId });
+    return res.data;
 }
 
-export async function submitAnswer(question: string, answer: string, questionId: string, resumeId: Number) {
+export async function submitAnswer(question: string, answer: string, questionId: string, resumeId: string) {
     const userId = getUserIdFromToken();
     if (!userId) throw new Error("User not logged in");
-    const res = await fetch(`${BASE_URL}/answer`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ question, answer, questionId, userId, resumeId })
-    });
-
-    return res.json();
+    const res = await api.post("/answer", { question, answer, questionId, resumeId });
+    return res.data;
 }

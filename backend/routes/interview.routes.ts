@@ -1,17 +1,16 @@
 import { Router } from "express";
-import multer from "multer";
 import Resume from "../models/Resume";
 import Interview from "../models/Interview";
-import Submitted from "../models/Submitted";
 import InterviewState from "../models/InterviewState";
 import { extractResumeText } from "../services/resume.service";
 import { generateQuestion, evaluateAnswer } from "../services/groq.service";
+import requireAuth from '../middleware/jwt.middleware';
 import upload from "../middleware/upload";
 import * as nodeCrypto from "crypto";
 
 const router = Router();
 
-router.post("/upload", upload.single("resume"), async (req, res) => {
+router.post("/upload", [upload.single("resume"), requireAuth], async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ message: "No file uploaded" });
@@ -46,12 +45,12 @@ function hashText(text: string) {
     return nodeCrypto.createHash("sha256").update(text).digest("hex");
 }
 
-router.get('/history', async (req, res) => {
+router.get('/history', requireAuth, async (req, res) => {
     const interviews = await Interview.find({ userId: req.query.userId, resumeId: req.query.resumeId }).sort({ _id: 1 });
     res.json({ interviews });
 });
 
-router.post("/question", async (req, res) => {
+router.post("/question", requireAuth, async (req, res) => {
     const { userId, resumeId } = req.body;
     const resume = await Resume.findOne({ userId: userId, _id: resumeId });
     const question = await generateQuestion(resume!.text);
@@ -68,7 +67,7 @@ router.post("/question", async (req, res) => {
     res.json({ question, id: insertedId });
 });
 
-router.post("/answer", async (req, res) => {
+router.post("/answer", requireAuth, async (req, res) => {
     const { question, answer, questionId, userId, resumeId } = req.body;
     const resume = await Resume.findOne({ userId: userId, _id: resumeId });
     const state = await InterviewState.findOne({ userId: userId, resumeId: resumeId });
@@ -79,13 +78,8 @@ router.post("/answer", async (req, res) => {
         if (ans === "YES") {
             await InterviewState.updateOne(
                 { userId },
-                { $set: { exitConfirmed: true, expectingExitConfirmation: false } }
+                { $set: { exitConfirmed: true, expectingExitConfirmation: false, submissionStatus: true } }
             );
-            Submitted.create({
-                userId,
-                resumeId,
-                status: "COMPLETED"
-            });
 
             await Interview.updateOne(
                 { _id: questionId },

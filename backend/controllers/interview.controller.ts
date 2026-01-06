@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 
 
 
-class UserController {
+class InterviewController {
     getUserProfile = async (req: Request, res: Response) => {
         const userId = req.params.id;
         const user = await this.getUserById(userId);
@@ -44,10 +44,9 @@ class UserController {
         // httpOnly cookie for refresh token (XSS-safe)
         res.cookie("refresh_token", refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production", // HTTPS in prod
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-            path: "/api/auth/refresh", // <-- broader scope
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            path: "/api/auth/refresh"
         });
 
         return res.json({
@@ -66,7 +65,6 @@ class UserController {
         if (!token) return res.status(401).json({ message: "Unauthorized" });
 
         try {
-            console.log("called her");
             const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET!) as any;
 
             // 🔐 Check refresh token matches DB (prevents reuse / theft)
@@ -83,10 +81,9 @@ class UserController {
 
             res.cookie("refresh_token", newRefresh, {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === "production", // HTTPS in prod
-                sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-                path: "/api/auth/refresh", // <-- broader scope
-                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "strict",
+                path: "/api/auth/refresh"
             });
 
             res.json({ accessToken });
@@ -103,5 +100,5 @@ class UserController {
     }
 }
 
-export default new UserController();
+export default new InterviewController();
 

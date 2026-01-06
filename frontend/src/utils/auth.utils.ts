@@ -9,3 +9,15 @@ export function getUserIdFromToken(): string | null {
         return null; // token malformed
     }
 }
+
+export const setAccessToken = (token) => {
+    localStorage.setItem("access_token", token);
+}
+
+export const getAccessToken = () => {
+    return localStorage.getItem("access_token");
+}
+
+export const clearAuth = () => {
+    localStorage.removeItem("access_token");
+}

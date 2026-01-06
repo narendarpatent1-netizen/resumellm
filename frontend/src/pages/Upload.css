@@ -42,3 +42,13 @@
 .upload_mesgs {
     width: 100%;
 }
+
+.btn-outline-primary {
+    color: #05728f !important;
+    border: 0px solid #05728f !important;
+}
+
+.btn-outline-primary:hover {
+    color: #05728f !important;
+    background: #ffffff !important;
+}
