@@ -41,16 +41,16 @@ class UserController {
 
         await this.saveRefreshToken(user._id.toString(), refreshToken);
 
+        console.log(refreshToken);
         // httpOnly cookie for refresh token (XSS-safe)
         res.cookie("refresh_token", refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production", // HTTPS in prod
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-            path: "/api/auth/refresh", // <-- broader scope
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+            httpOnly: true,    // prevents React from reading it
+            secure: false,     // must be false in localhost (HTTPS would require true)
+            sameSite: "lax",  // allows cross-origin sending
+            path: "/"
         });
 
-        return res.json({
+        res.json({
             message: "Login successful",
             accessToken,
             user: {
@@ -62,11 +62,11 @@ class UserController {
     }
 
     refreshToken = async (req: Request, res: Response) => {
+        console.log(req.cookies);
         const token = req.cookies?.refresh_token;
         if (!token) return res.status(401).json({ message: "Unauthorized" });
 
         try {
-            console.log("called her");
             const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET!) as any;
 
             // 🔐 Check refresh token matches DB (prevents reuse / theft)
@@ -82,11 +82,10 @@ class UserController {
             const accessToken = signAccessToken({ sub: decoded.sub });
 
             res.cookie("refresh_token", newRefresh, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production", // HTTPS in prod
-                sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-                path: "/api/auth/refresh", // <-- broader scope
-                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+                httpOnly: true,    // prevents React from reading it
+                secure: false,     // must be false in localhost (HTTPS would require true)
+                sameSite: "lax",  // allows cross-origin sending
+                path: "/"
             });
 
             res.json({ accessToken });

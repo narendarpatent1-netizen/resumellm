@@ -1,5 +1,6 @@
 import axios from "axios";
 
+axios.defaults.withCredentials = true;
 
 let accessToken = localStorage.getItem("access_token");
 
@@ -18,7 +19,7 @@ export const clearAuth = () => {
 };
 
 const api = axios.create({
-    baseURL: "http://localhost:3000/api/interview",
+    baseURL: "http://localhost:4000/api/",
     withCredentials: true
 });
 
@@ -66,10 +67,10 @@ api.interceptors.response.use(
 
             try {
                 const { data } = await axios.post(
-                    "http://localhost:3000/api/auth/refresh",
-                    {},
-                    { withCredentials: true } // send refresh token cookie
+                    "http://localhost:4000/api/auth/refresh",
+                    {}
                 );
+
 
                 const newAccessToken = data.accessToken;
                 setAccessToken(newAccessToken);
@@ -81,11 +82,9 @@ api.interceptors.response.use(
 
                 return api(originalRequest);
             } catch (err) {
-                console.log(err);
-                return false;
                 processQueue(err, null);
                 clearAuth();
-                window.location.href = "/login"; // logout user
+                window.location.href = "/"; // logout user
                 return Promise.reject(err);
             } finally {
                 isRefreshing = false;

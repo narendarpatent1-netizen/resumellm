@@ -44,10 +44,11 @@ const UploadApp: React.FC = () => {
             };
             setMessages([...messages, newMessage]);
             const resumeId = await uploadResume(selectedFile);
+            console.log(resumeId);
             localStorage.setItem('resumeId', resumeId.lastResumeId);
             setResumeId(resumeId.lastResumeId);
             setSelectedFile(null); // Clear preview after sending
-            navigate("/chat")
+            navigate("/chat");
         }
     };
 
@@ -74,6 +75,7 @@ const UploadApp: React.FC = () => {
 
     useEffect(() => {
         const token = getAccessToken();
+        console.log(token);
         document.title = "Upload | My App";
         if (!token) {
             navigate("/");

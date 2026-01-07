@@ -21,7 +21,7 @@ router.post("/upload", [upload.single("resume"), requireAuth], async (req, res) 
         }
         const checkExisting = await Resume.findOne({ userId: req.body.userId, hash: hashText(resumeText) });
         if (checkExisting) {
-            return res.status(400).json({ message: "Resume already uploaded from this user", lastResumeId: checkExisting._id.toString() });
+            return res.status(200).json({ message: "Resume already uploaded from this user", lastResumeId: checkExisting._id.toString() });
         }
         const resume = new Resume({
             userId: req.body.userId, // In real app, get from auth

@@ -11,6 +11,8 @@ const router = Router();
 
 router.post("/login", userController.login);
 
+router.post('/refresh', userController.refreshToken);
+
 router.post("/register", async (req, res) => {
     try {
         const { name, email, password } = req.body;
