@@ -29,6 +29,13 @@ export async function getQuestion(resumeId: string) {
 export async function submitAnswer(question: string, answer: string, questionId: string, resumeId: string) {
     const userId = getUserIdFromToken();
     if (!userId) throw new Error("User not logged in");
-    const res = await api.post("interview/answer", { question, answer, questionId, resumeId });
+    const res = await api.post("interview/answer", { question, answer, questionId, userId, resumeId });
+    return res.data;
+}
+
+export async function fetchResult(resumeId: string) {
+    const userId = getUserIdFromToken();
+    if (!userId) throw new Error("User not logged in");
+    const res = await api.post("interview/fetchResult", { id: userId, resumeId });
     return res.data;
 }

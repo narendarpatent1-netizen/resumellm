@@ -7,6 +7,9 @@ import { generateQuestion, evaluateAnswer } from "../services/groq.service";
 import requireAuth from '../middleware/jwt.middleware';
 import upload from "../middleware/upload";
 import * as nodeCrypto from "crypto";
+import interviewController from "../controllers/interview.controller";
+import { historySchema, historyDTO, QuestionDTO, QuestionSchema, answerSchema, answerDTO } from "../validation/interview.validation";
+import { validate } from "../middleware/validate";
 
 const router = Router();
 
@@ -45,13 +48,15 @@ function hashText(text: string) {
     return nodeCrypto.createHash("sha256").update(text).digest("hex");
 }
 
-router.get('/history', requireAuth, async (req, res) => {
-    const interviews = await Interview.find({ userId: req.query.userId, resumeId: req.query.resumeId }).sort({ _id: 1 });
+router.get('/history', [requireAuth, validate(historySchema)], async (req, res) => {
+    const params = req.query as historyDTO;
+    const interviews = await Interview.find({ userId: params.userId, resumeId: params.resumeId }).sort({ _id: 1 });
     res.json({ interviews });
 });
 
-router.post("/question", requireAuth, async (req, res) => {
-    const { userId, resumeId } = req.body;
+router.post("/question", [requireAuth, validate(QuestionSchema)], async (req, res) => {
+    const body = req.body as QuestionDTO;
+    const { userId, resumeId } = body;
     const resume = await Resume.findOne({ userId: userId, _id: resumeId });
     const question = await generateQuestion(resume!.text);
     const doc = await Interview.create({
@@ -67,8 +72,9 @@ router.post("/question", requireAuth, async (req, res) => {
     res.json({ question, id: insertedId });
 });
 
-router.post("/answer", requireAuth, async (req, res) => {
-    const { question, answer, questionId, userId, resumeId } = req.body;
+router.post("/answer", [requireAuth, validate(answerSchema)], async (req, res) => {
+    const body = req.body as answerDTO;
+    const { question, answer, questionId, userId, resumeId } = body;
     const resume = await Resume.findOne({ userId: userId, _id: resumeId });
     const state = await InterviewState.findOne({ userId: userId, resumeId: resumeId });
 
@@ -134,7 +140,7 @@ router.post("/answer", requireAuth, async (req, res) => {
             question,
             answer
         );
-
+        console.log(evaluation);
         if (evaluation.result === "EXIT_PENDING") {
             await Interview.updateOne(
                 { _id: questionId },
@@ -160,7 +166,7 @@ router.post("/answer", requireAuth, async (req, res) => {
             await InterviewState.create({
                 userId,
                 expectingExitConfirmation: true,
-                exitConfirmed: true,
+                exitConfirmed: false,
                 resumeId: resumeId,
                 lastPrompt: "exit_confirmation"
             });
@@ -204,4 +210,5 @@ router.post("/answer", requireAuth, async (req, res) => {
 
 });
 
+router.post("/fetchResult", requireAuth, interviewController.fetchResult);
 export default router;

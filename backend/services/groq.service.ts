@@ -51,42 +51,61 @@ User's response: "${text}"
 export async function evaluateAnswer(resumeText: string, question: string, userAnswer: string) {
 
     const prompt = `
-    You are an interview evaluator.
+        You are an interview evaluator.
 
-    Resume:
-    ${resumeText}
+        Resume:
+        ${resumeText}
 
-    Question:
-    ${question}
+        Question:
+        ${question}
 
-    User Answer:
-    ${userAnswer}
+        User Answer:
+        ${userAnswer}
 
-    Evaluation Rules:
-    - Judge ONLY based on the question and answer
+        Evaluation Rules:
+        - Judge ONLY based on the given question and answer.
+        - Do NOT use resume knowledge unless relevant to judging correctness.
 
-    - If the user wants to STOP / EXIT / END:
-    Result: EXIT_PENDING
-    Reason: User requested to exit the interview
-    Score: 0/10
-    NextAction: CONFIRM_EXIT
-    NextQuestion: NONE
+        EXIT RULE:
+        - If the user clearly wants to STOP / EXIT / END the interview:
+        Result: EXIT_PENDING
+        Reason: User requested to exit the interview
+        Score: 0/10
+        NextAction: CONFIRM_EXIT
+        NextQuestion: NONE
 
-    - When EXIT_PENDING is returned:
-    • Do NOT ask follow-up questions
-    • Do NOT give feedback
-    • Only trigger confirmation flow
+        CORRECT ANSWER RULE:
+        - If the answer correctly and sufficiently addresses the question:
+        Result: ACCEPTED
+        Reason: <short explanation>
+        Score: <x>/10
+        NextAction: ASK_NEXT
+        NextQuestion: <generate a NEW interview question>
 
-    - Otherwise evaluate normally.
+        INCORRECT ANSWER RULE:
+        - If the answer is incomplete, vague, or incorrect:
+        Result: INCORRECT
+        Reason: <short explanation>
+        Score: <x>/10
+        NextAction: RETRY
+        NextQuestion: <ask the user to improve or clarify the SAME question>
 
-    Output format (strict):
+        IMPORTANT CONSTRAINTS:
+        - When Result = ACCEPTED → MUST generate a new interview question
+        - When Result = INCORRECT → MUST ask the user to retry the SAME question
+        - When Result = EXIT_PENDING → confirmation flow ONLY
+        - NEVER skip NextQuestion unless EXIT_PENDING
+        - Follow the output format EXACTLY
 
-    Result: ACCEPTED or INCORRECT or EXIT_PENDING
-    Reason: <short explanation>
-    Score: <x>/10
-    NextAction: <text or NONE>
-    NextQuestion: <question or NONE>
-    `;
+        Output format (STRICT — no markdown, no extra text):
+
+        Result: ACCEPTED or INCORRECT or EXIT_PENDING
+        Reason: <short explanation>
+        Score: <x>/10
+        NextAction: ASK_NEXT or RETRY or CONFIRM_EXIT
+        NextQuestion: <question or NONE>
+        `;
+
 
     const res = await llm.invoke(prompt);
     const output = typeof res === "string" ? res : (res.content ?? "").toString();
@@ -100,21 +119,33 @@ export async function evaluateAnswer(resumeText: string, question: string, userA
 
     // 🔒 Hard fallback — detect exit intent manually
     const exitIntents = ["exit", "quit", "stop", "end", "leave"];
-    const wantsExit = exitIntents.some(x =>
-        userAnswer.toLowerCase().includes(x)
+    const wantsExit = exitIntents.some(word =>
+        new RegExp(`\\b${word}\\b`, "i").test(userAnswer)
     );
 
-    if (wantsExit && result !== "EXIT_PENDING") {
+    if (wantsExit) {
         result = "EXIT_PENDING";
     }
+
+    const nextAction =
+        result === "ACCEPTED"
+            ? "ASK_NEXT"
+            : result === "EXIT_PENDING"
+                ? "CONFIRM_EXIT"
+                : "RETRY";
+
+    const nextQuestion =
+        result === "EXIT_PENDING"
+            ? "NONE"
+            : nextQMatch?.[1]?.trim() ?? "NONE";
 
     return {
         raw: output.trim(),
         result,
         isCorrect: result === "ACCEPTED",
         score: scoreMatch ? Number(scoreMatch[1]) : 0,
-        nextAction: actionMatch?.[1]?.trim() ?? "NONE",
-        nextQuestion: nextQMatch?.[1]?.trim() ?? "NONE"
+        nextAction,
+        nextQuestion
     };
 }
 

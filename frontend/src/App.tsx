@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Chat from "./pages/Chat";
 import Upload from "./pages/Upload";
+import Result from "./pages/Result";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import { ResumeProvider } from "./context/ResumeContext";
@@ -23,6 +24,7 @@ const App = () => (
           <Routes>
             <Route path="/chat" element={<Chat />} />
             <Route path="/upload" element={<Upload />} />
+            <Route path="/result" element={<Result />} />
             <Route path="/" element={<Login />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

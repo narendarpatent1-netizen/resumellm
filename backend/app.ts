@@ -5,6 +5,7 @@ import connectDB from "./config/db";
 import interviewRoutes from "./routes/interview.routes";
 import AuthRoutes from "./routes/auth.routes";
 import cookieParser from "cookie-parser";
+import compression from "compression";
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+app.use(compression());
 
 app.use("/api/interview", interviewRoutes);
 app.use('/api/auth', AuthRoutes);

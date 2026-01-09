@@ -1,6 +1,10 @@
 import User, { UserDocument } from "../models/User";
+import Resume from "../models/Resume";
+import Interview from "../models/Interview";
+import InterviewState from "../models/InterviewState";
 import { Request, Response } from "express";
 import { signAccessToken, signRefreshToken } from "../helpers/jwt.helper";
+import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 
 
@@ -98,6 +102,125 @@ class InterviewController {
             { $set: { refreshToken: refreshToken } }
         );
     }
+
+    fetchResult = async (req: Request, res: Response) => {
+        try {
+            const { id } = req.body;
+            if (!id) {
+                return res.status(400).json({
+                    message: "userId is required"
+                });
+            }
+
+            const data = await Resume.aggregate([
+                // 1️⃣ Get all resumes for the user
+                {
+                    $match: {
+                        userId: new mongoose.Types.ObjectId(id)
+                    }
+                },
+
+                // 2️⃣ Lookup scores PER resume
+                {
+                    $lookup: {
+                        from: "interviewconversations",
+                        let: {
+                            resumeId: "$_id",
+                            userId: "$userId"
+                        },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: {
+                                        $and: [
+                                            { $eq: ["$resumeId", "$$resumeId"] },
+                                            { $eq: ["$userId", "$$userId"] }
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                $group: {
+                                    _id: null,
+                                    totalScore: { $sum: "$score" }
+                                }
+                            }
+                        ],
+                        as: "scoreSummary"
+                    }
+                },
+
+                // 3️⃣ Lookup interview state (exitConfirmed)
+                {
+                    $lookup: {
+                        from: "interviewstates",
+                        let: {
+                            resumeId: "$_id",
+                            userId: "$userId"
+                        },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: {
+                                        $and: [
+                                            { $eq: ["$resumeId", "$$resumeId"] },
+                                            { $eq: ["$userId", "$$userId"] },
+                                            { $eq: ["$exitConfirmed", true] } // ✅ only true
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                $project: {
+                                    _id: 0,
+                                    exitConfirmed: 1
+                                }
+                            }
+                        ],
+                        as: "exitState"
+                    }
+                },
+
+                // 4️⃣ Extract per-resume score and exitState safely
+                {
+                    $addFields: {
+                        totalScore: {
+                            $ifNull: [
+                                { $arrayElemAt: ["$scoreSummary.totalScore", 0] },
+                                0
+                            ]
+                        },
+                        resumeId: "$_id",
+                        exitConfirmed: {
+                            $cond: [
+                                { $gt: [{ $size: "$exitState" }, 0] },
+                                true,
+                                false
+                            ]
+                        }
+                    }
+                },
+
+                // 5️⃣ Cleanup
+                {
+                    $project: {
+                        scoreSummary: 0,
+                        exitState: 0
+                    }
+                }
+            ]);
+            return res.status(200).json({
+                success: true,
+                data
+            });
+
+        } catch (err) {
+            console.error(err);
+            return res.status(500).json({
+                message: "Failed to fetch result"
+            });
+        }
+    };
 }
 
 export default new InterviewController();

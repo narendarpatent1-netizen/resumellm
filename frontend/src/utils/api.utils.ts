@@ -26,7 +26,6 @@ const api = axios.create({
 // Add Authorization header to all requests
 api.interceptors.request.use((config) => {
     if (accessToken) {
-        console.log(accessToken);
         config.headers!["Authorization"] = `Bearer ${accessToken}`;
     }
     return config;

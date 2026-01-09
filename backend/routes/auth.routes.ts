@@ -4,12 +4,14 @@ import requireAuth from "../middleware/jwt.middleware";
 import { getClientIp } from "../helpers/clientip.helper";
 import Interview from "../models/Interview";
 import userController from "../controllers/user.controller";
+import { loginSchema } from "../validation/user.validation";
+import { validate } from "../middleware/validate";
 import bcrypt from "bcrypt";
 
 const router = Router();
 // const upload = multer({ dest: "uploads/" });
 
-router.post("/login", userController.login);
+router.post("/login", validate(loginSchema), userController.login);
 
 router.post('/refresh', userController.refreshToken);
 

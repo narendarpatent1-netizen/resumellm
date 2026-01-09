@@ -1,6 +1,7 @@
 import User, { UserDocument } from "../models/User";
 import { Request, Response } from "express";
 import { signAccessToken, signRefreshToken } from "../helpers/jwt.helper";
+import { loginDTO } from "../validation/user.validation";
 import jwt from "jsonwebtoken";
 
 
@@ -21,7 +22,8 @@ class UserController {
     }
 
     login = async (req: Request, res: Response) => {
-        const { email, password } = req.body;
+        const body = req.body as loginDTO;
+        const { email, password } = body;
         const user = await User.findOne({ email }).select("+password") as UserDocument | null;
 
         if (!user) {
@@ -62,7 +64,6 @@ class UserController {
     }
 
     refreshToken = async (req: Request, res: Response) => {
-        console.log(req.cookies);
         const token = req.cookies?.refresh_token;
         if (!token) return res.status(401).json({ message: "Unauthorized" });
 
