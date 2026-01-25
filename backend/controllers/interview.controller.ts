@@ -1,106 +1,73 @@
-import User, { UserDocument } from "../models/User";
+// import User, { UserDocument } from "../models/User";
 import Resume from "../models/Resume";
 import Interview from "../models/Interview";
 import InterviewState from "../models/InterviewState";
 import { Request, Response } from "express";
-import { signAccessToken, signRefreshToken } from "../helpers/jwt.helper";
 import mongoose from "mongoose";
-import jwt from "jsonwebtoken";
-
+import { extractResumeText } from "../services/resume.service";
+import * as nodeCrypto from "crypto";
+import { historyDTO, QuestionDTO, answerDTO } from "../validation/interview.validation";
+import { generateQuestion, evaluateAnswer } from "../services/groq.service";
 
 
 class InterviewController {
-    getUserProfile = async (req: Request, res: Response) => {
-        const userId = req.params.id;
-        const user = await this.getUserById(userId);
-
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-        res.json({ user });
-    }
-
-    getUserById = async (id: string) => {
-        return await User.findById(id);
-    }
-
-    login = async (req: Request, res: Response) => {
-        const { email, password } = req.body;
-        const user = await User.findOne({ email }).select("+password") as UserDocument | null;
-
-        if (!user) {
-            return res.status(401).json({ message: "Invalid email or password" });
-        }
-        const isMatch = await user.comparePassword(password);
-        if (!isMatch) {
-            return res.status(401).json({ message: "Invalid email or password" });
-        }
-
-        // optional audit field
-        user.lastLoginAt = new Date();
-        await user.save({ validateBeforeSave: false });
-
-        const accessToken = signAccessToken({ sub: user._id.toString(), role: "user" });
-        const refreshToken = signRefreshToken({ sub: user._id.toString() });
-
-        await this.saveRefreshToken(user._id.toString(), refreshToken);
-
-        // httpOnly cookie for refresh token (XSS-safe)
-        res.cookie("refresh_token", refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
-            path: "/api/auth/refresh"
-        });
-
-        return res.json({
-            message: "Login successful",
-            accessToken,
-            user: {
-                id: user._id,
-                email: user.email,
-                name: user.name
-            }
-        });
-    }
-
-    refreshToken = async (req: Request, res: Response) => {
-        const token = req.cookies?.refresh_token;
-        if (!token) return res.status(401).json({ message: "Unauthorized" });
-
+    uploadFile = async (req, res) => {
         try {
-            const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET!) as any;
-
-            // 🔐 Check refresh token matches DB (prevents reuse / theft)
-            const user = await User.findById(decoded.sub).select("refreshToken");
-            if (!user || user.refreshToken !== token) {
-                return res.status(403).json({ message: "Token reuse detected" });
+            if (!req.file) {
+                return res.status(400).json({ message: "No file uploaded" });
             }
-
-            // Optionally rotate refresh token
-            const newRefresh = signRefreshToken({ sub: decoded.sub });
-            await this.saveRefreshToken(decoded.sub, newRefresh);
-
-            const accessToken = signAccessToken({ sub: decoded.sub });
-
-            res.cookie("refresh_token", newRefresh, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                sameSite: "strict",
-                path: "/api/auth/refresh"
+            const resumeText = await extractResumeText(req.file.path);
+            if (!resumeText || resumeText.trim().length === 0) {
+                return res.status(400).json({ message: "Could not extract resume text" });
+            }
+            const checkExisting = await Resume.findOne({ userId: req.body.userId, hash: this.hashText(resumeText) });
+            if (checkExisting) {
+                return res.status(200).json({ message: "Resume already uploaded from this user", lastResumeId: checkExisting._id.toString() });
+            }
+            const resume = new Resume({
+                userId: req.body.userId, // In real app, get from auth
+                fileName: req.file.originalname,
+                hash: this.hashText(resumeText),
+                text: resumeText, // ✅ REQUIRED FIELD
             });
-
-            res.json({ accessToken });
-        } catch {
-            res.status(401).json({ message: "Invalid or expired token" });
+            const savedResume = await resume.save();
+            const resumeId = savedResume._id.toString();
+            return res.status(201).json({
+                message: "Resume uploaded successfully",
+                lastResumeId: resumeId
+            });
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json({ message: "Server error" });
         }
-    };
+    }
 
-    saveRefreshToken = async (id: string, refreshToken: string) => {
-        await User.updateOne(
-            { _id: id },
-            { $set: { refreshToken: refreshToken } }
-        );
+    hashText(text: string) {
+        return nodeCrypto.createHash("sha256").update(text).digest("hex");
+    }
+
+    history = async (req, res) => {
+        const params = req.query as historyDTO;
+        const interviews = await Interview.find({ userId: params.userId, resumeId: params.resumeId }).sort({ _id: 1 });
+        res.json({ interviews });
+    }
+
+    question = async (req, res) => {
+        const body = req.body as QuestionDTO;
+        const { userId, resumeId } = body;
+        const resume = await Resume.findOne({ userId: userId, _id: resumeId });
+        const question = await generateQuestion(resume!.text);
+        const doc = await Interview.create({
+            userId: userId,
+            question,
+            answer: "",
+            evaluation: "",
+            resumeId: resumeId,
+            score: 0
+        });
+    
+        const insertedId = doc._id;
+        res.json({ question, id: insertedId });
     }
 
     fetchResult = async (req: Request, res: Response) => {
@@ -220,7 +187,145 @@ class InterviewController {
                 message: "Failed to fetch result"
             });
         }
-    };
+    }
+
+    answer = async (req, res) => {
+        const body = req.body as answerDTO;
+        const { question, answer, questionId, userId, resumeId } = body;
+        const resume = await Resume.findOne({ userId: userId, _id: resumeId });
+        const state = await InterviewState.findOne({ userId: userId, resumeId: resumeId });
+    
+        if (state?.expectingExitConfirmation) {
+            const ans = answer.trim().toUpperCase();
+    
+            if (ans === "YES") {
+                await InterviewState.updateOne(
+                    { userId },
+                    { $set: { exitConfirmed: true, expectingExitConfirmation: false, submissionStatus: true } }
+                );
+    
+                await Interview.updateOne(
+                    { _id: questionId },
+                    {
+                        $set: {
+                            userId: userId,
+                            question,
+                            answer: ans,
+                            score: 0,
+                            resumeId: resumeId,
+                        }
+                    }
+                );
+    
+                res.json({ evaluation: "" });
+            }
+    
+            if (ans === "NO") {
+                await InterviewState.updateOne(
+                    { userId },
+                    { $set: { exitConfirmed: false, expectingExitConfirmation: false } }
+                );
+    
+                await Interview.updateOne(
+                    { _id: questionId },
+                    {
+                        $set: {
+                            userId: userId,
+                            answer: ans,
+                            score: 0,
+                            resumeId: resumeId,
+                        }
+                    }
+                );
+    
+                const question = await generateQuestion(resume!.text);
+                await Interview.create({
+                    userId: userId,
+                    question,
+                    answer: "",
+                    evaluation: "",
+                    resumeId: resumeId,
+                    score: 0
+                });
+    
+                res.json({ evaluation: question });
+            }
+    
+        } else {
+            const evaluation = await evaluateAnswer(
+                resume!.text,
+                question,
+                answer
+            );
+            console.log(evaluation);
+            if (evaluation.result === "EXIT_PENDING") {
+                await Interview.updateOne(
+                    { _id: questionId },
+                    {
+                        $set: {
+                            answer,
+                            evaluation: "User requested exit — awaiting confirmation",
+                            score: evaluation.score ?? 0,
+                            resumeId: resumeId,
+                        }
+                    }
+                );
+    
+                Interview.create({
+                    userId: userId,
+                    question: "Are you sure you want to exit the interview? Please reply YES or NO.",
+                    answer: "",
+                    evaluation: "",
+                    resumeId: resumeId,
+                    score: 0
+                });
+    
+                await InterviewState.create({
+                    userId,
+                    expectingExitConfirmation: true,
+                    exitConfirmed: false,
+                    resumeId: resumeId,
+                    lastPrompt: "exit_confirmation"
+                });
+            } else {
+                if (evaluation.nextQuestion && evaluation.nextQuestion != "NONE") {
+                    Interview.create({
+                        userId: userId,
+                        question: evaluation.nextQuestion,
+                        answer: "",
+                        evaluation: "",
+                        resumeId: resumeId,
+                        score: 0
+                    });
+                } else if (evaluation.nextAction != "NONE") {
+                    Interview.create({
+                        userId: userId,
+                        question: evaluation.nextAction,
+                        answer: "",
+                        evaluation: "",
+                        resumeId: resumeId,
+                        score: 0
+                    });
+                }
+    
+                await Interview.updateOne(
+                    { _id: questionId },
+                    {
+                        $set: {
+                            userId: userId,
+                            question,
+                            answer,
+                            evaluation: evaluation.raw,
+                            score: evaluation.score ?? 0,
+                            resumeId: resumeId,
+                        }
+                    }
+                );
+            }
+            res.json({ evaluation: evaluation.raw });
+        }
+    
+    }
 }
 
 export default new InterviewController();

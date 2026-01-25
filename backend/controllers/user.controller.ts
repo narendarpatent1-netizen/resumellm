@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import { signAccessToken, signRefreshToken } from "../helpers/jwt.helper";
 import { loginDTO } from "../validation/user.validation";
 import jwt from "jsonwebtoken";
-
+import bcrypt from "bcrypt";
 
 
 class UserController {
@@ -29,11 +29,11 @@ class UserController {
         if (!user) {
             return res.status(401).json({ message: "Invalid email or password" });
         }
-        const isMatch = await user.comparePassword(password);
+
+        const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(401).json({ message: "Invalid email or password" });
         }
-
         // optional audit field
         user.lastLoginAt = new Date();
         await user.save({ validateBeforeSave: false });
@@ -43,7 +43,6 @@ class UserController {
 
         await this.saveRefreshToken(user._id.toString(), refreshToken);
 
-        console.log(refreshToken);
         // httpOnly cookie for refresh token (XSS-safe)
         res.cookie("refresh_token", refreshToken, {
             httpOnly: true,    // prevents React from reading it
@@ -61,6 +60,27 @@ class UserController {
                 name: user.name
             }
         });
+    }
+
+    register = async (req: Request, res: Response) => {
+        try {
+            const { name, email, password } = req.body;
+            const existingUser = await User.findOne({ email });
+            if (existingUser) {
+                return res.status(400).json({ message: "Email already in use" });
+            }
+            const hashedPassword = await bcrypt.hash(password, 10);
+            const user = new User({
+                name,
+                email,
+                password: hashedPassword
+            });
+            await user.save();
+            res.status(201).json({ message: "User registered successfully" });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ message: "Server error", error });
+        }
     }
 
     refreshToken = async (req: Request, res: Response) => {
